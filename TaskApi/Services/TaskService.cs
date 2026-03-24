@@ -1,6 +1,8 @@
-﻿using TaskApi.Dto.Commands;
+﻿using System.ComponentModel.DataAnnotations;
+using TaskApi.Dto.Commands;
+using TaskApi.Dto.Queries;
 using TaskApi.Dto.Responses;
-using TaskApi.Exceptions; // Це важливо для ConcurrencyException
+using TaskApi.Exceptions; 
 using TaskApi.Models;
 using TaskApi.Repositories;
 
@@ -29,14 +31,19 @@ namespace TaskApi.Services
 
         public async Task<TaskItemDto> CreateAsync(TaskItemCreateCommand command)
         {
-            // Якщо у тебе немає класу ValidatorHelper, цей рядок можна закоментувати:
-            // ValidatorHelper.Validate(command);
 
-            if (!Enum.TryParse<Models.TaskStatus>(command.Status, out var status))
-                throw new Exception($"Invalid status: {command.Status}");
+            if (string.IsNullOrWhiteSpace(command.Title))
+                throw new ValidationException("Title is required");
 
-            if (!Enum.TryParse<Models.TaskPriority>(command.Priority, out var priority))
-                throw new Exception($"Invalid priority: {command.Priority}");
+            if (!Enum.TryParse<Models.TaskStatus>(command.Status, true, out var status))
+            {
+                status = Models.TaskStatus.Pending; // Тепер назва збігається з твоїм enum
+            }
+
+            if (!Enum.TryParse<Models.TaskPriority>(command.Priority, true, out var priority))
+            {
+                priority = Models.TaskPriority.Low;
+            }
 
             var task = new TaskItem
             {
@@ -71,13 +78,17 @@ namespace TaskApi.Services
             var status = existingTask.Status;
             var priority = existingTask.Priority;
 
-            if (!string.IsNullOrWhiteSpace(command.Status) &&
-                !Enum.TryParse<Models.TaskStatus>(command.Status, out status))
-                throw new Exception($"Invalid status: {command.Status}");
+            if (!string.IsNullOrWhiteSpace(command.Status))
+            {
+                if (Enum.TryParse<Models.TaskStatus>(command.Status, true, out var parsedStatus))
+                    status = parsedStatus;
+            }
 
-            if (!string.IsNullOrWhiteSpace(command.Priority) &&
-                !Enum.TryParse<Models.TaskPriority>(command.Priority, out priority))
-                throw new Exception($"Invalid priority: {command.Priority}");
+            if (!string.IsNullOrWhiteSpace(command.Priority))
+            {
+                if (Enum.TryParse<Models.TaskPriority>(command.Priority, true, out var parsedPriority))
+                    priority = parsedPriority;
+            }
 
             // Бізнес-логіка: заборона повернення з Done в InProgress
             if (existingTask.Status == Models.TaskStatus.Done && status == Models.TaskStatus.InProgress)
@@ -137,9 +148,25 @@ namespace TaskApi.Services
                 Description = task.Description,
                 Status = task.Status.ToString(),
                 Priority = task.Priority.ToString(),
+
+                ExecutorId = task.ExecutorId,
                 CreatedDate = task.CreatedDate,
-                ModifiedDate = task.ModifiedDate,
+
                 Version = task.Version
+            };
+        }
+
+        public async Task<PagedResult<TaskItemDto>> GetFilteredAsync(TaskItemFilterQuery query)
+        {
+            var totalCount = await _repository.GetTotalCountAsync(query);
+            var items = await _repository.GetFilteredAsync(query);
+
+            return new PagedResult<TaskItemDto>
+            {
+                Items = items.Select(MapToDto).ToList(),
+                TotalCount = totalCount,
+                PageNumber = query.Page,
+                PageSize = query.PageSize
             };
         }
     }

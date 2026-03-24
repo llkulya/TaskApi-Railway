@@ -1,8 +1,9 @@
 ﻿using Microsoft.AspNetCore.Mvc;
 using TaskApi.Dto.Commands;
+using TaskApi.Dto.Queries;
 using TaskApi.Dto.Responses;
-using TaskApi.Services;
 using TaskApi.Exceptions;
+using TaskApi.Services;
 using System.ComponentModel.DataAnnotations;
 
 namespace TaskApi.Controllers
@@ -12,10 +13,12 @@ namespace TaskApi.Controllers
     public class TasksController : ControllerBase
     {
         private readonly ITaskService _taskService;
+        private readonly IAssignmentService _assignmentService;
 
-        public TasksController(ITaskService taskService)
+        public TasksController(ITaskService taskService, IAssignmentService assignmentService)
         {
             _taskService = taskService;
+            _assignmentService = assignmentService;
         }
 
         /// <summary>
@@ -44,19 +47,44 @@ namespace TaskApi.Controllers
         }
 
         /// <summary>
+        /// Отримати завдання з фільтрацією та пагінацією
+        /// </summary>
+        [HttpGet("filtered")]
+        [ProducesResponseType(StatusCodes.Status200OK)]
+        public async Task<ActionResult<PagedResult<TaskItemDto>>> GetFiltered(
+            [FromQuery] TaskItemFilterQuery query)
+        {
+            var result = await _taskService.GetFilteredAsync(query);
+            return Ok(result);
+        }
+
+        /// <summary>
+        /// Отримати завдання з високим пріоритетом
+        /// </summary>
+        [HttpGet("high-priority")]
+        [ProducesResponseType(StatusCodes.Status200OK)]
+        public async Task<ActionResult<List<TaskItemDto>>> GetHighPriority()
+        {
+            var tasks = await _taskService.GetHighPriorityAsync();
+            return Ok(tasks);
+        }
+
+        /// <summary>
         /// Створити нове завдання
         /// </summary>
         [HttpPost]
         [ProducesResponseType(StatusCodes.Status201Created)]
         [ProducesResponseType(StatusCodes.Status400BadRequest)]
-        public async Task<ActionResult<TaskItemDto>> Create([FromBody] TaskItemCreateCommand command)
+        public async Task<ActionResult<TaskItemDto>> Create(
+            [FromBody] TaskItemCreateCommand command)
         {
             try
             {
                 var createdTask = await _taskService.CreateAsync(command);
-                return CreatedAtAction(nameof(GetById), new { id = createdTask.Id }, createdTask);
+                return CreatedAtAction(nameof(GetById),
+                    new { id = createdTask.Id }, createdTask);
             }
-            catch (ArgumentException ex)
+            catch (ValidationException ex)
             {
                 return BadRequest(ex.Message);
             }
@@ -69,12 +97,12 @@ namespace TaskApi.Controllers
         [ProducesResponseType(StatusCodes.Status200OK)]
         [ProducesResponseType(StatusCodes.Status400BadRequest)]
         [ProducesResponseType(StatusCodes.Status404NotFound)]
-        public async Task<ActionResult<TaskItemDto>> Update(int id, [FromBody] TaskItemUpdateCommand command)
+        public async Task<ActionResult<TaskItemDto>> Update(
+            int id, [FromBody] TaskItemUpdateCommand command)
         {
+            command.Id = id;
             try
             {
-                if (id != command.Id) return BadRequest("ID mismatch");
-
                 var updatedTask = await _taskService.UpdateAsync(command);
                 return Ok(updatedTask);
             }
@@ -86,19 +114,13 @@ namespace TaskApi.Controllers
             {
                 return BadRequest(ex.Message);
             }
-            catch (ArgumentException ex)
+            catch (ValidationException ex)
             {
-                return BadRequest(ex.Message);
+                return BadRequest(new { message = ex.Message, type = "ValidationError" });
             }
             catch (ConcurrencyException ex)
             {
-                // 409 Conflict - конфлікт оптимістичного блокування
                 return Conflict(new { message = ex.Message, type = "ConcurrencyError" });
-            }
-            catch (ValidationException ex)
-            {
-                // 400 Bad Request - помилка валідації
-                return BadRequest(new { message = ex.Message, type = "ValidationError" });
             }
         }
 
@@ -117,14 +139,65 @@ namespace TaskApi.Controllers
         }
 
         /// <summary>
-        /// Отримати завдання з високим пріоритетом (High або Critical)
+        /// Юз-кейс 4.1 — Призначити виконавця на завдання
         /// </summary>
-        [HttpGet("high-priority")]
+        [HttpPut("{taskId}/assign-executor")]
         [ProducesResponseType(StatusCodes.Status200OK)]
-        public async Task<ActionResult<List<TaskItemDto>>> GetHighPriority()
+        [ProducesResponseType(StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(StatusCodes.Status404NotFound)]
+        [ProducesResponseType(StatusCodes.Status409Conflict)]
+        public async Task<IActionResult> AssignExecutor(
+            int taskId, [FromBody] AssignExecutorCommand command)
         {
-            var tasks = await _taskService.GetHighPriorityAsync();
-            return Ok(tasks);
+            command.TaskId = taskId;
+            try
+            {
+                await _assignmentService.AssignTaskToExecutorAsync(command);
+                return Ok(new { Message = "Виконавця успішно призначено" });
+            }
+            catch (KeyNotFoundException ex)
+            {
+                return NotFound(ex.Message);
+            }
+            catch (InvalidOperationException ex)
+            {
+                return BadRequest(ex.Message);
+            }
+            catch (ConcurrencyException ex)
+            {
+                return Conflict(new { message = ex.Message, type = "ConcurrencyError" });
+            }
+        }
+
+        /// <summary>
+        /// Юз-кейс 4.2 — Змінити виконавця завдання
+        /// </summary>
+        [HttpPut("{taskId}/change-executor")]
+        [ProducesResponseType(StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(StatusCodes.Status404NotFound)]
+        [ProducesResponseType(StatusCodes.Status409Conflict)]
+        public async Task<IActionResult> ChangeExecutor(
+            int taskId, [FromBody] ChangeExecutorCommand command)
+        {
+            command.TaskId = taskId;
+            try
+            {
+                await _assignmentService.ChangeExecutorAsync(command);
+                return Ok(new { Message = "Виконавця успішно змінено" });
+            }
+            catch (KeyNotFoundException ex)
+            {
+                return NotFound(ex.Message);
+            }
+            catch (InvalidOperationException ex)
+            {
+                return BadRequest(ex.Message);
+            }
+            catch (ConcurrencyException ex)
+            {
+                return Conflict(new { message = ex.Message, type = "ConcurrencyError" });
+            }
         }
     }
 }

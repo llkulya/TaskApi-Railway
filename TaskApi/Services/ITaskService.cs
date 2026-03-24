@@ -1,4 +1,5 @@
 ﻿using TaskApi.Dto.Commands;
+using TaskApi.Dto.Queries;
 using TaskApi.Dto.Responses;
 
 namespace TaskApi.Services
@@ -11,5 +12,6 @@ namespace TaskApi.Services
         Task<TaskItemDto?> UpdateAsync(TaskItemUpdateCommand command);
         Task<DeleteTaskItemResponse> DeleteAsync(int id);
         Task<List<TaskItemDto>> GetHighPriorityAsync();
+        Task<PagedResult<TaskItemDto>> GetFilteredAsync(TaskItemFilterQuery query);
     }
 }

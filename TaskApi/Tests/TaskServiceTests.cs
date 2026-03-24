@@ -1,6 +1,7 @@
 ﻿using Moq;
 using NUnit.Framework;
 using TaskApi.Dto.Commands;
+using TaskApi.Dto.Queries;
 using TaskApi.Models;
 using TaskApi.Repositories;
 using TaskApi.Services;
@@ -44,7 +45,8 @@ namespace TaskApi.Tests
                 CreatedDate = DateTime.UtcNow
             };
 
-            _mockRepository.Setup(r => r.AddAsync(It.IsAny<TaskItem>())).ReturnsAsync(createdTask);
+            _mockRepository.Setup(r => r.AddAsync(It.IsAny<TaskItem>()))
+                           .ReturnsAsync(createdTask);
 
             var result = await _service.CreateAsync(dto);
 
@@ -53,14 +55,19 @@ namespace TaskApi.Tests
             Assert.That(result.Status, Is.EqualTo("Pending"));
         }
 
-        // Тест 2: Валідація порожнього заголовка (Якщо є ValidatorHelper)
-        /* [Test]
+        // Тест 2: Валідація порожнього заголовка
+        [Test]
         public void CreateAsync_ShouldThrowException_WhenTitleIsEmpty()
         {
-            var dto = new TaskItemCreateCommand { Title = "", Description = "Опис" };
-            Assert.ThrowsAsync<ValidationException>(async () => await _service.CreateAsync(dto));
+            var dto = new TaskItemCreateCommand
+            {
+                Title = "",
+                Description = "Опис"
+            };
+
+            Assert.ThrowsAsync<ValidationException>(
+                async () => await _service.CreateAsync(dto));
         }
-        */
 
         // Тест 3: Заборона зміни статусу з Done на InProgress
         [Test]
@@ -73,7 +80,8 @@ namespace TaskApi.Tests
                 Version = 1
             };
 
-            _mockRepository.Setup(r => r.GetByIdAsync(1)).ReturnsAsync(existingTask);
+            _mockRepository.Setup(r => r.GetByIdAsync(1))
+                           .ReturnsAsync(existingTask);
 
             var updateCommand = new TaskItemUpdateCommand
             {
@@ -82,7 +90,8 @@ namespace TaskApi.Tests
                 Version = 1
             };
 
-            Assert.ThrowsAsync<InvalidOperationException>(async () => await _service.UpdateAsync(updateCommand));
+            Assert.ThrowsAsync<InvalidOperationException>(
+                async () => await _service.UpdateAsync(updateCommand));
         }
 
         // Тест 4: Успішне оновлення статусу
@@ -93,11 +102,14 @@ namespace TaskApi.Tests
             {
                 Id = 1,
                 Status = Models.TaskStatus.Pending,
+                Priority = Models.TaskPriority.Medium,
                 Version = 1
             };
 
-            _mockRepository.Setup(r => r.GetByIdAsync(1)).ReturnsAsync(existingTask);
-            _mockRepository.Setup(r => r.UpdateAsync(It.IsAny<TaskItem>())).ReturnsAsync((TaskItem t) => t);
+            _mockRepository.Setup(r => r.GetByIdAsync(1))
+                           .ReturnsAsync(existingTask);
+            _mockRepository.Setup(r => r.UpdateAsync(It.IsAny<TaskItem>()))
+                           .ReturnsAsync((TaskItem t) => t);
 
             var updateCommand = new TaskItemUpdateCommand
             {
@@ -126,20 +138,26 @@ namespace TaskApi.Tests
             };
 
             _mockRepository.Setup(r => r.GetHighPriorityAsync())
-                .ReturnsAsync(tasks.Where(t => t.Priority == Models.TaskPriority.High || t.Priority == Models.TaskPriority.Critical).ToList());
+                .ReturnsAsync(tasks.Where(t =>
+                    t.Priority == Models.TaskPriority.High ||
+                    t.Priority == Models.TaskPriority.Critical).ToList());
 
             var result = await _service.GetHighPriorityAsync();
 
             Assert.That(result.Count, Is.EqualTo(2));
-            Assert.That(result.All(t => t.Priority == "High" || t.Priority == "Critical"), Is.True);
+            Assert.That(result.All(t =>
+                t.Priority == "High" || t.Priority == "Critical"), Is.True);
         }
 
         // Тест 6: Завдання не знайдено
         [Test]
         public async Task GetByIdAsync_ShouldReturnNull_WhenTaskNotFound()
         {
-            _mockRepository.Setup(r => r.GetByIdAsync(999)).ReturnsAsync((TaskItem?)null);
+            _mockRepository.Setup(r => r.GetByIdAsync(999))
+                           .ReturnsAsync((TaskItem?)null);
+
             var result = await _service.GetByIdAsync(999);
+
             Assert.That(result, Is.Null);
         }
 
@@ -148,8 +166,10 @@ namespace TaskApi.Tests
         public async Task DeleteAsync_ShouldReturnTrue_WhenTaskExists()
         {
             var existingTask = new TaskItem { Id = 1, Title = "Завдання" };
-            _mockRepository.Setup(r => r.GetByIdAsync(1)).ReturnsAsync(existingTask);
-            _mockRepository.Setup(r => r.DeleteAsync(1)).ReturnsAsync(true);
+            _mockRepository.Setup(r => r.GetByIdAsync(1))
+                           .ReturnsAsync(existingTask);
+            _mockRepository.Setup(r => r.DeleteAsync(1))
+                           .ReturnsAsync(true);
 
             var result = await _service.DeleteAsync(1);
 
@@ -163,15 +183,104 @@ namespace TaskApi.Tests
         {
             var tasks = new List<TaskItem>
             {
-                new TaskItem { Id = 1, Title = "Тест", Status = Models.TaskStatus.Done, Priority = Models.TaskPriority.High }
+                new TaskItem
+                {
+                    Id = 1,
+                    Title = "Тест",
+                    Status = Models.TaskStatus.Done,
+                    Priority = Models.TaskPriority.High,
+                    CreatedDate = DateTime.UtcNow
+                }
             };
-            _mockRepository.Setup(r => r.GetAllAsync()).ReturnsAsync(tasks);
+
+            _mockRepository.Setup(r => r.GetAllAsync())
+                           .ReturnsAsync(tasks);
 
             var result = await _service.GetAllAsync();
 
             Assert.That(result.Count, Is.EqualTo(1));
             Assert.That(result[0].Title, Is.EqualTo("Тест"));
             Assert.That(result[0].Status, Is.EqualTo("Done"));
+            Assert.That(result[0].Priority, Is.EqualTo("High"));
+        }
+
+        // Тест 9: Призначення виконавця на Done завдання
+        [Test]
+        public void AssignTaskToExecutorAsync_ShouldThrow_WhenTaskIsDone()
+        {
+            var mockExecutorRepo = new Mock<IExecutorRepository>();
+            var assignmentService = new AssignmentService(
+                _mockRepository.Object,
+                mockExecutorRepo.Object);
+
+            var existingTask = new TaskItem
+            {
+                Id = 1,
+                Status = Models.TaskStatus.Done,
+                Version = 0
+            };
+
+            var executor = new Executor
+            {
+                Id = 1,
+                FirstName = "Тест",
+                LastName = "Тестовий"
+            };
+
+            _mockRepository.Setup(r => r.GetByIdAsync(1))
+                           .ReturnsAsync(existingTask);
+            mockExecutorRepo.Setup(r => r.GetByIdAsync(1))
+                            .ReturnsAsync(executor);
+
+            var command = new AssignExecutorCommand
+            {
+                TaskId = 1,
+                ExecutorId = 1,
+                Version = 0
+            };
+
+            Assert.ThrowsAsync<InvalidOperationException>(
+                async () => await assignmentService.AssignTaskToExecutorAsync(command));
+        }
+
+        // Тест 10: Зміна виконавця на того самого
+        [Test]
+        public void ChangeExecutorAsync_ShouldThrow_WhenSameExecutor()
+        {
+            var mockExecutorRepo = new Mock<IExecutorRepository>();
+            var assignmentService = new AssignmentService(
+                _mockRepository.Object,
+                mockExecutorRepo.Object);
+
+            var existingTask = new TaskItem
+            {
+                Id = 1,
+                Status = Models.TaskStatus.Pending,
+                ExecutorId = 5,
+                Version = 0
+            };
+
+            var executor = new Executor
+            {
+                Id = 5,
+                FirstName = "Тест",
+                LastName = "Тестовий"
+            };
+
+            _mockRepository.Setup(r => r.GetByIdAsync(1))
+                           .ReturnsAsync(existingTask);
+            mockExecutorRepo.Setup(r => r.GetByIdAsync(5))
+                            .ReturnsAsync(executor);
+
+            var command = new ChangeExecutorCommand
+            {
+                TaskId = 1,
+                NewExecutorId = 5,
+                Version = 0
+            };
+
+            Assert.ThrowsAsync<InvalidOperationException>(
+                async () => await assignmentService.ChangeExecutorAsync(command));
         }
     }
 }

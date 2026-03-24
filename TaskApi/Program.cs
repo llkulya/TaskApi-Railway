@@ -3,24 +3,22 @@ using TaskApi.Services;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// --- РЕЄСТРАЦІЯ СЕРВІСІВ (Dependency Injection) ---
+builder.Services.AddSingleton<ITaskRepository, TaskRepository>();
+builder.Services.AddSingleton<IProjectRepository, ProjectRepository>();
+builder.Services.AddSingleton<IExecutorRepository, ExecutorRepository>();
+builder.Services.AddSingleton<IProjectManagerRepository, ProjectManagerRepository>();
 
-// Реєструємо репозиторій та сервіс
-builder.Services.AddScoped<ITaskRepository, MockTaskRepository>();
 builder.Services.AddScoped<ITaskService, TaskService>();
+builder.Services.AddScoped<IProjectService, ProjectService>();
+builder.Services.AddScoped<IExecutorService, ExecutorService>();
+builder.Services.AddScoped<IAssignmentService, AssignmentService>();
 
-// Додає підтримку контролерів
 builder.Services.AddControllers();
-
-// Налаштування Swagger
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
 var app = builder.Build();
 
-// --- КОНФІГУРАЦІЯ КОНВЕЄРА (Middleware) ---
-
-// Swagger працює тільки в режимі розробки
 if (app.Environment.IsDevelopment())
 {
     app.UseSwagger();
@@ -28,14 +26,8 @@ if (app.Environment.IsDevelopment())
 }
 
 app.UseHttpsRedirection();
-
-// Маршрутизація: визначає, який контролер викликати
 app.UseRouting();
-
-// Авторизація (поки що просто стандартна заглушка)
 app.UseAuthorization();
-
-// Мапимо контролери на адреси
 app.MapControllers();
 
 app.Run();
