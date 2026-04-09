@@ -1,63 +1,65 @@
-﻿namespace TaskApi.Repositories
+﻿using Microsoft.EntityFrameworkCore;
+using TaskApi.Data;
+
+namespace TaskApi.Repositories
 {
+    /// <summary>
+    /// Базовий репозиторій, що реалізує стандартні CRUD операції через Entity Framework Core.
+    /// </summary>
+    /// <typeparam name="T">Клас моделі (сутності)</typeparam>
     public class BaseRepository<T> : IBaseRepository<T> where T : class
     {
-        // Наше сховище в пам'яті
-        protected readonly List<T> _entities = new List<T>();
+        protected readonly ApplicationDbContext _context;
+        protected readonly DbSet<T> _dbSet;
 
-        public async Task<List<T>> GetAllAsync() => _entities.ToList();
-
-        public async Task<T?> GetByIdAsync(int id)
+        public BaseRepository(ApplicationDbContext context)
         {
-            // Шукаємо властивість "Id" у будь-якого об'єкта T
-            return _entities.FirstOrDefault(e =>
-                (int)e.GetType().GetProperty("Id")?.GetValue(e)! == id);
+            // Впровадження контексту бази даних
+            _context = context;
+            // Отримуємо набір даних для конкретного типу T
+            _dbSet = context.Set<T>();
+        }
+
+        public virtual async Task<List<T>> GetAllAsync()
+        {
+            // Виконуємо асинхронний запит SELECT * FROM ...
+            return await _dbSet.ToListAsync();
+        }
+
+        public virtual async Task<T?> GetByIdAsync(int id)
+        {
+            // Знаходимо запис за первинним ключем (Id)
+            return await _dbSet.FindAsync(id);
         }
 
         public virtual async Task<T> AddAsync(T entity)
         {
-            // Отримуємо властивість 'Id' через рефлексію
-            var idProperty = typeof(T).GetProperty("Id");
-
-            if (idProperty != null)
-            {
-                // Дивимося, які ID вже є в нашому списку _entities
-                var existingIds = _entities
-                    .Select(e => (int)idProperty.GetValue(e)!)
-                    .ToList();
-
-                // Визначаємо наступний ID (якщо список порожній — почнемо з 1)
-                int nextId = existingIds.Any() ? existingIds.Max() + 1 : 1;
-
-                // Встановлюємо новий ID для нашого об'єкта
-                idProperty.SetValue(entity, nextId);
-            }
-
-            _entities.Add(entity);
-            return await Task.FromResult(entity);
-        }
-
-        public async Task<T?> UpdateAsync(T entity)
-        {
-            var id = (int)entity.GetType().GetProperty("Id")?.GetValue(entity)!;
-            var existing = await GetByIdAsync(id);
-            if (existing != null)
-            {
-                _entities.Remove(existing);
-                _entities.Add(entity);
-            }
+            // Додаємо об'єкт у контекст
+            await _dbSet.AddAsync(entity);
+            // Фіксуємо зміни в MySQL (генерується INSERT)
+            await _context.SaveChangesAsync();
             return entity;
         }
 
-        public async Task<bool> DeleteAsync(int id)
+        public virtual async Task<T?> UpdateAsync(T entity)
+        {
+            // Позначаємо сутність як змінену
+            _context.Entry(entity).State = EntityState.Modified;
+            // Фіксуємо зміни в MySQL (генерується UPDATE)
+            await _context.SaveChangesAsync();
+            return entity;
+        }
+
+        public virtual async Task<bool> DeleteAsync(int id)
         {
             var entity = await GetByIdAsync(id);
-            if (entity != null)
-            {
-                _entities.Remove(entity);
-                return true;
-            }
-            return false;
+            if (entity == null) return false;
+
+            // Видаляємо сутність
+            _dbSet.Remove(entity);
+            // Фіксуємо зміни в MySQL (генерується DELETE)
+            await _context.SaveChangesAsync();
+            return true;
         }
     }
 }

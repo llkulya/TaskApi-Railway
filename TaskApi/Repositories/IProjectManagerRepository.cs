@@ -2,11 +2,8 @@
 
 namespace TaskApi.Repositories
 {
-    public interface IProjectManagerRepository
+    public interface IProjectManagerRepository : IBaseRepository<ProjectManager>
     {
-        Task<List<ProjectManager>> GetAllAsync();
-        Task<ProjectManager?> GetByIdAsync(int id);
-        Task<ProjectManager> AddAsync(ProjectManager manager);
-        Task<bool> DeleteAsync(int id);
+        // Тут зазвичай стандартні методи, але можна додати специфічні, якщо треба
     }
 }

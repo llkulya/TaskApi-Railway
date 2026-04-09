@@ -1,58 +1,24 @@
-﻿using TaskApi.Models;
+﻿using Microsoft.EntityFrameworkCore;
+using TaskApi.Data;
+using TaskApi.Models;
 
 namespace TaskApi.Repositories
 {
-    public class ProjectManagerRepository : IProjectManagerRepository
+    // Тепер ми наслідуємося від BaseRepository, щоб не писати дублюючий код CRUD
+    public class ProjectManagerRepository : BaseRepository<ProjectManager>, IProjectManagerRepository
     {
-        private readonly List<ProjectManager> _managers = new();
-
-        public ProjectManagerRepository()
+        public ProjectManagerRepository(ApplicationDbContext context) : base(context)
         {
-            // Тестові дані
-            _managers.AddRange(new List<ProjectManager>
-            {
-                new ProjectManager
-                {
-                    Id = 1,
-                    FirstName = "Іван",
-                    LastName = "Петренко",
-                    Email = "ivan@example.com"
-                },
-                new ProjectManager
-                {
-                    Id = 2,
-                    FirstName = "Марія",
-                    LastName = "Коваленко",
-                    Email = "maria@example.com"
-                }
-            });
         }
 
-        public Task<List<ProjectManager>> GetAllAsync()
+        // Ми можемо перевизначити GetById, щоб підтягнути проєкти, якими керує цей менеджер
+        public override async Task<ProjectManager?> GetByIdAsync(int id)
         {
-            return Task.FromResult(_managers.ToList());
+            return await _dbSet
+                .Include(m => m.ManagedProjects) // Додаємо зв'язок (Eager Loading)
+                .FirstOrDefaultAsync(m => m.Id == id);
         }
 
-        public Task<ProjectManager?> GetByIdAsync(int id)
-        {
-            var manager = _managers.FirstOrDefault(m => m.Id == id);
-            return Task.FromResult<ProjectManager?>(manager);
-        }
-
-        public Task<ProjectManager> AddAsync(ProjectManager manager)
-        {
-            var maxId = _managers.Any() ? _managers.Max(m => m.Id) : 0;
-            manager.Id = maxId + 1;
-            _managers.Add(manager);
-            return Task.FromResult(manager);
-        }
-
-        public Task<bool> DeleteAsync(int id)
-        {
-            var manager = _managers.FirstOrDefault(m => m.Id == id);
-            if (manager == null) return Task.FromResult(false);
-            _managers.Remove(manager);
-            return Task.FromResult(true);
-        }
+        // Всі інші методи (Add, Delete, GetAll) автоматично підтягнуться з BaseRepository
     }
 }
