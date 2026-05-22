@@ -1,13 +1,14 @@
 ﻿using TaskApi.Models;
 using TaskApi.Dto.Commands;
+using TaskApi.Dto.Responses; 
 
 namespace TaskApi.Services
 {
     public interface IExecutorService
     {
-        Task<List<Executor>> GetAllAsync();
-        Task<Executor?> GetByIdAsync(int id);
-        Task<Executor> CreateAsync(ExecutorCreateCommand command);
+        Task<List<ExecutorDto>> GetAllAsync();
+        Task<ExecutorDto?> GetByIdAsync(int id);
+        Task<ExecutorDto> CreateAsync(ExecutorCreateCommand command);
         Task<bool> DeleteAsync(int id);
     }
 }

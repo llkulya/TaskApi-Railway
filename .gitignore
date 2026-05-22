@@ -361,3 +361,20 @@ MigrationBackup/
 
 # Fody - auto-generated XML schema
 FodyWeavers.xsd
+
+# ==========================================
+# CUSTOM PROJECT RULES (Step 10)
+# ==========================================
+
+# Docker & Secrets (КРИТИЧНО ВАЖЛИВО)
+.env
+*.env
+secrets.json
+appsettings.Development.json
+
+# Logs
+**/logs/
+*.log
+
+# Project specific
+**/TestResults/

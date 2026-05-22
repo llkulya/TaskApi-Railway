@@ -7,8 +7,10 @@
         public string Description { get; set; } = string.Empty;
         public TaskStatus Status { get; set; } = TaskStatus.Pending;
         public TaskPriority Priority { get; set; }
+        public DateTime DueDate { get; set; }
         public DateTime CreatedDate { get; set; }
         public DateTime? ModifiedDate { get; set; }
+        public DateTime? CompletedAt { get; set; }
         public int Version { get; set; }
 
         /// <summary>
@@ -22,6 +24,7 @@
         /// </summary>
         public int? ExecutorId { get; set; }
         public Executor? Executor { get; set; }
+        public List<Comment> Comments { get; set; } = new();
     }
 
     public enum TaskPriority

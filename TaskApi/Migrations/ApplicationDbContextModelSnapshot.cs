@@ -17,10 +17,75 @@ namespace TaskApi.Migrations
         {
 #pragma warning disable 612, 618
             modelBuilder
-                .HasAnnotation("ProductVersion", "9.0.0")
+                .HasAnnotation("ProductVersion", "8.0.8")
                 .HasAnnotation("Relational:MaxIdentifierLength", 64);
 
             MySqlModelBuilderExtensions.AutoIncrementColumns(modelBuilder);
+
+            modelBuilder.Entity("TaskApi.Models.AuditLog", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("Action")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("varchar(50)");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime(6)");
+
+                    b.Property<string>("EntityId")
+                        .HasMaxLength(100)
+                        .HasColumnType("varchar(100)");
+
+                    b.Property<string>("EntityName")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("varchar(100)");
+
+                    b.Property<string>("NewValues")
+                        .HasColumnType("longtext");
+
+                    b.Property<string>("OldValues")
+                        .HasColumnType("longtext");
+
+                    b.Property<string>("UserId")
+                        .HasMaxLength(100)
+                        .HasColumnType("varchar(100)");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("AuditLogs", (string)null);
+                });
+
+            modelBuilder.Entity("TaskApi.Models.Comment", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<DateTime>("CreatedDate")
+                        .HasColumnType("datetime(6)");
+
+                    b.Property<int>("TaskItemId")
+                        .HasColumnType("int");
+
+                    b.Property<string>("Text")
+                        .IsRequired()
+                        .HasColumnType("longtext");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("TaskItemId");
+
+                    b.ToTable("comments");
+                });
 
             modelBuilder.Entity("TaskApi.Models.Executor", b =>
                 {
@@ -50,7 +115,7 @@ namespace TaskApi.Migrations
 
                     b.HasKey("Id");
 
-                    b.ToTable("Executors");
+                    b.ToTable("executors");
                 });
 
             modelBuilder.Entity("TaskApi.Models.Project", b =>
@@ -85,7 +150,7 @@ namespace TaskApi.Migrations
 
                     b.HasIndex("ManagerId");
 
-                    b.ToTable("Projects");
+                    b.ToTable("projects");
                 });
 
             modelBuilder.Entity("TaskApi.Models.ProjectManager", b =>
@@ -110,7 +175,82 @@ namespace TaskApi.Migrations
 
                     b.HasKey("Id");
 
-                    b.ToTable("ProjectManager");
+                    b.ToTable("projectmanager");
+                });
+
+            modelBuilder.Entity("TaskApi.Models.RefreshToken", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime(6)");
+
+                    b.Property<DateTime>("ExpiresAt")
+                        .HasColumnType("datetime(6)");
+
+                    b.Property<bool>("IsRevoked")
+                        .HasColumnType("tinyint(1)");
+
+                    b.Property<string>("Token")
+                        .IsRequired()
+                        .HasMaxLength(500)
+                        .HasColumnType("varchar(500)");
+
+                    b.Property<int>("UserId")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Token")
+                        .IsUnique();
+
+                    b.HasIndex("UserId");
+
+                    b.ToTable("RefreshTokens", (string)null);
+                });
+
+            modelBuilder.Entity("TaskApi.Models.TaskHistory", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<DateTime>("ChangeDate")
+                        .HasColumnType("datetime(6)");
+
+                    b.Property<string>("ChangeType")
+                        .IsRequired()
+                        .HasColumnType("longtext");
+
+                    b.Property<string>("ChangedBy")
+                        .IsRequired()
+                        .HasColumnType("longtext");
+
+                    b.Property<string>("Comment")
+                        .HasColumnType("longtext");
+
+                    b.Property<string>("NewValue")
+                        .IsRequired()
+                        .HasColumnType("longtext");
+
+                    b.Property<string>("OldValue")
+                        .IsRequired()
+                        .HasColumnType("longtext");
+
+                    b.Property<int>("TaskItemId")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("TaskItemId");
+
+                    b.ToTable("TaskHistories", (string)null);
                 });
 
             modelBuilder.Entity("TaskApi.Models.TaskItem", b =>
@@ -121,12 +261,18 @@ namespace TaskApi.Migrations
 
                     MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("Id"));
 
+                    b.Property<DateTime?>("CompletedAt")
+                        .HasColumnType("datetime(6)");
+
                     b.Property<DateTime>("CreatedDate")
                         .HasColumnType("datetime(6)");
 
                     b.Property<string>("Description")
                         .IsRequired()
                         .HasColumnType("longtext");
+
+                    b.Property<DateTime>("DueDate")
+                        .HasColumnType("datetime(6)");
 
                     b.Property<int?>("ExecutorId")
                         .HasColumnType("int");
@@ -156,7 +302,60 @@ namespace TaskApi.Migrations
 
                     b.HasIndex("ProjectId");
 
-                    b.ToTable("Tasks");
+                    b.ToTable("tasks");
+                });
+
+            modelBuilder.Entity("TaskApi.Models.User", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime(6)");
+
+                    b.Property<string>("Email")
+                        .IsRequired()
+                        .HasMaxLength(255)
+                        .HasColumnType("varchar(255)");
+
+                    b.Property<string>("GoogleId")
+                        .HasColumnType("longtext");
+
+                    b.Property<DateTime?>("LastLogin")
+                        .HasColumnType("datetime(6)");
+
+                    b.Property<string>("PasswordHash")
+                        .IsRequired()
+                        .HasMaxLength(255)
+                        .HasColumnType("varchar(255)");
+
+                    b.Property<string>("Role")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(50)
+                        .HasColumnType("varchar(50)")
+                        .HasDefaultValue("User");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Email")
+                        .IsUnique();
+
+                    b.ToTable("Users", (string)null);
+                });
+
+            modelBuilder.Entity("TaskApi.Models.Comment", b =>
+                {
+                    b.HasOne("TaskApi.Models.TaskItem", "TaskItem")
+                        .WithMany("Comments")
+                        .HasForeignKey("TaskItemId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("TaskItem");
                 });
 
             modelBuilder.Entity("TaskApi.Models.Project", b =>
@@ -168,6 +367,28 @@ namespace TaskApi.Migrations
                         .IsRequired();
 
                     b.Navigation("Manager");
+                });
+
+            modelBuilder.Entity("TaskApi.Models.RefreshToken", b =>
+                {
+                    b.HasOne("TaskApi.Models.User", "User")
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("User");
+                });
+
+            modelBuilder.Entity("TaskApi.Models.TaskHistory", b =>
+                {
+                    b.HasOne("TaskApi.Models.TaskItem", "Task")
+                        .WithMany()
+                        .HasForeignKey("TaskItemId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Task");
                 });
 
             modelBuilder.Entity("TaskApi.Models.TaskItem", b =>
@@ -198,6 +419,11 @@ namespace TaskApi.Migrations
             modelBuilder.Entity("TaskApi.Models.ProjectManager", b =>
                 {
                     b.Navigation("ManagedProjects");
+                });
+
+            modelBuilder.Entity("TaskApi.Models.TaskItem", b =>
+                {
+                    b.Navigation("Comments");
                 });
 #pragma warning restore 612, 618
         }

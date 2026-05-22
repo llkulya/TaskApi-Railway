@@ -10,7 +10,13 @@ namespace TaskApi.Repositories
         {
         }
 
-        // Перевизначаємо GetById, щоб підтягнути список завдань проекту
+        public override async Task<List<Project>> GetAllAsync()
+        {
+            return await _context.Projects
+                .Include(p => p.Manager) 
+                .ToListAsync();
+        }
+
         public override async Task<Project?> GetByIdAsync(int id)
         {
             return await _dbSet

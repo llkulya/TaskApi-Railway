@@ -1,0 +1,89 @@
+﻿services:
+  db:
+    image: mysql:8.0
+    container_name: taskapi-db
+    restart: unless-stopped
+    ports:
+      - "3307:3306"
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
+      MYSQL_DATABASE: ${MYSQL_DATABASE}
+    volumes:
+      - mysql_data:/var/lib/mysql
+    networks:
+      - app-network
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-p${MYSQL_ROOT_PASSWORD}"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  seq:
+    image: datalust/seq:latest
+    container_name: taskapi-seq
+    restart: unless-stopped
+    ports:
+      - "5341:80"
+    environment:
+      ACCEPT_EULA: "Y"
+      SEQ_FIRSTRUN_ADMINUSERNAME: admin
+      SEQ_FIRSTRUN_ADMINPASSWORD: ${SEQ_ADMIN_PASSWORD}
+    volumes:
+      - seq_data:/data
+    networks:
+      - app-network
+
+  taskapi:
+    image: taskapi:1.0
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: taskapi-app
+    restart: unless-stopped
+    expose:
+      - "80"
+    environment:
+      ASPNETCORE_ENVIRONMENT: Development
+      DATABASE_CONNECTION_STRING: "Server=db;Port=3306;Database=${MYSQL_DATABASE};User=root;Password=${MYSQL_ROOT_PASSWORD};CharSet=utf8mb4;"
+      JWT_SECRET: ${JWT_SECRET}
+      SEQ_URL: "http://seq:80"
+      GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID}
+      GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET}
+      LOG_DIRECTORY: /app/logs
+    depends_on:
+      db:
+        condition: service_healthy
+      seq:
+        condition: service_started
+    networks:
+      - app-network
+
+  hrservice:
+    image: hrservice:1.0
+    build:
+      context: ../HRService
+      dockerfile: Dockerfile
+    container_name: hrservice-app
+    restart: unless-stopped
+    ports:
+      - "8090:80"
+    environment:
+      ASPNETCORE_ENVIRONMENT: Development
+      TASK_SERVICE_URL: "http://taskapi:80"
+      SEQ_URL: "http://seq:80"
+      LOG_DIRECTORY: /app/logs
+    depends_on:
+      taskapi:
+        condition: service_started
+      seq:
+        condition: service_started
+    networks:
+      - app-network
+
+networks:
+  app-network:
+    driver: bridge
+
+volumes:
+  mysql_data:
+  seq_data:

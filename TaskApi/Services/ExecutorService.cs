@@ -1,6 +1,7 @@
 ﻿using TaskApi.Models;
 using TaskApi.Repositories;
 using TaskApi.Dto.Commands;
+using TaskApi.Dto.Responses;
 
 namespace TaskApi.Services
 {
@@ -13,36 +14,57 @@ namespace TaskApi.Services
             _executorRepository = executorRepository;
         }
 
-        public async Task<List<Executor>> GetAllAsync()
+        // 1. Повертаємо список DTO замість моделей БД
+        public async Task<List<ExecutorDto>> GetAllAsync()
         {
-            return await _executorRepository.GetAllAsync();
+            var executors = await _executorRepository.GetAllAsync();
+            return executors.Select(e => MapToDto(e)).ToList();
         }
 
-        public async Task<Executor?> GetByIdAsync(int id)
+        // 2. Повертаємо один DTO
+        public async Task<ExecutorDto?> GetByIdAsync(int id)
         {
-            return await _executorRepository.GetByIdAsync(id);
+            var executor = await _executorRepository.GetByIdAsync(id);
+            return executor == null ? null : MapToDto(executor);
         }
 
-        public async Task<Executor> CreateAsync(ExecutorCreateCommand command)
+        // 3. Логіка створення з розділенням імені та прізвища
+        public async Task<ExecutorDto> CreateAsync(ExecutorCreateCommand command)
         {
             if (!Enum.TryParse<ExecutorRole>(command.Role, true, out var role))
                 role = ExecutorRole.Developer;
 
             var executor = new Executor
             {
-                FirstName = command.FullName,
-                LastName = string.Empty,
+                // Використовуємо нові поля з команди (FirstName/LastName)
+                FirstName = command.FirstName,
+                LastName = command.LastName,
                 Email = command.Email,
                 HireDate = DateTime.UtcNow,
                 Role = role
             };
 
-            return await _executorRepository.AddAsync(executor);
+            var created = await _executorRepository.AddAsync(executor);
+            return MapToDto(created);
         }
 
         public async Task<bool> DeleteAsync(int id)
         {
             return await _executorRepository.DeleteAsync(id);
+        }
+
+        // 4. Допоміжний метод для перетворення (Mapping)
+        private ExecutorDto MapToDto(Executor executor)
+        {
+            return new ExecutorDto
+            {
+                Id = executor.Id,
+                FirstName = executor.FirstName,
+                LastName = executor.LastName,
+                Email = executor.Email,
+                Role = executor.Role.ToString(), // Перетворюємо Enum у текст для Swagger
+                HireDate = executor.HireDate
+            };
         }
     }
 }

@@ -35,5 +35,30 @@ namespace TaskApi.Dto.Queries
         /// </summary>
         [Range(1, 100)]
         public int PageSize { get; set; } = 10;
+
+        /// <summary>
+        /// Фільтр: створено після дати
+        /// </summary>
+        public DateTime? CreatedAfter { get; set; }
+
+        /// <summary>
+        /// Фільтр: створено до дати
+        /// </summary>
+        public DateTime? CreatedBefore { get; set; }
+
+        /// <summary>
+        /// Фільтр: прострочені задачі
+        /// </summary>
+        public bool? IsOverdue { get; set; }
+
+        /// <summary>
+        /// Сортування по полю (CreatedDate, Priority, DueDate)
+        /// </summary>
+        public string? SortBy { get; set; }
+
+        /// <summary>
+        /// Сортування за спаданням
+        /// </summary>
+        public bool SortDescending { get; set; } = true;
     }
 }

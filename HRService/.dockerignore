@@ -1,0 +1,13 @@
+﻿**/bin
+**/obj
+**/.vs
+**/.git
+**/logs
+**/TestResults
+*.user
+*.suo
+*.tmp
+*.log
+Dockerfile
+docker-compose.yml
+README.md

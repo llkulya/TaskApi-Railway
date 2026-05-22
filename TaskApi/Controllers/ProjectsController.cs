@@ -24,10 +24,34 @@ namespace TaskApi.Controllers
         }
 
         [HttpPost]
-        public async Task<IActionResult> Create(ProjectCreateCommand command)
+        public async Task<IActionResult> Create([FromBody] ProjectCreateCommand command)
         {
             var project = await _projectService.CreateAsync(command);
             return Ok(project);
+        }
+
+        [HttpDelete("{id}")]
+        public async Task<IActionResult> Delete(int id, [FromQuery] string? reason = null)
+        {
+            var deleted = await _projectService.DeleteAsync(id, reason);
+
+            if (!deleted)
+                return NotFound(new { message = $"Project with ID {id} was not found." });
+
+            return NoContent();
+        }
+
+        [HttpPatch("{id}/status")]
+        public async Task<IActionResult> ChangeStatus(
+    int id,
+    [FromBody] ProjectStatusUpdateCommand command)
+        {
+            var updatedProject = await _projectService.ChangeStatusAsync(id, command);
+
+            if (updatedProject == null)
+                return NotFound(new { message = $"Project with ID {id} was not found." });
+
+            return Ok(updatedProject);
         }
     }
 }
