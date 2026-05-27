@@ -171,6 +171,8 @@ else
     builder.Services.AddScoped<IEmailService, DevelopmentEmailService>();
 
 // ===== INTERCEPTORS =====
+builder.Services.AddMemoryCache();
+
 builder.Services.AddSingleton<IProxyGenerator, ProxyGenerator>();
 builder.Services.AddSingleton<ValidationInterceptor>();
 builder.Services.AddSingleton<PerformanceInterceptor>();
